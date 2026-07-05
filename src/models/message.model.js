@@ -2,51 +2,36 @@ const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema(
   {
-    sender: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    chat: {
+    chatId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Chat',
       required: true,
     },
-    messageType: {
-      type: String,
-      enum: ['text', 'image', 'video', 'location', 'contact'],
-      default: 'text',
+    senderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
     },
-    // Mesaj tipi metin ise:
     content: {
       type: String,
       trim: true,
     },
-    // Mesaj tipi medya (resim, video) ise:
-    mediaUrl: {
+    type: {
       type: String,
+      enum: ['text', 'image', 'video', 'location', 'contact'],
+      default: 'text',
     },
-    // Mesaj tipi konum ise:
-    locationData: {
-      latitude: Number,
-      longitude: Number,
+    deletedAt: {
+      type: Date, // Eğer mesaj silinirse soft-delete için (Audit log)
+      default: null,
     },
-    // Mesaj tipi rehber/kişi ise:
-    contactData: {
-      name: String,
-      phoneNumber: String,
-    },
-    // Okunma durumu için:
-    readBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
   },
   {
-    timestamps: true,
+    timestamps: true, // createdAt ve updatedAt otomatik
   }
 );
+
+// Sonsuz liste (Cursor pagination) sorgularını hızlandırmak için birleşik index
+messageSchema.index({ chatId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Message', messageSchema);

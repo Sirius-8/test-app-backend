@@ -2,44 +2,30 @@ const mongoose = require('mongoose');
 
 const chatSchema = new mongoose.Schema(
   {
-    isGroupChat: {
-      type: Boolean,
-      default: false,
-    },
-    users: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
-    // Sadece grup sohbetleri için:
-    chatName: {
+    type: {
       type: String,
+      enum: ['private', 'group'],
+      default: 'private',
+    },
+    title: {
+      type: String, // Özel mesajlaşmalarda boş olabilir, grup için dolu
       trim: true,
     },
-    chatIcon: {
-      type: String,
-      default: '',
-    },
-    groupAdmin: {
+    ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'User', // Grup sahibi
     },
-    // Tüm sohbetler listesinde göstermek için son mesaj referansı:
-    latestMessage: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Message',
-    },
-    // Kullanıcı bazlı okunmamış mesaj sayacı (örneğin: { "userId": 2, "userId2": 0 })
-    unreadCounts: {
-      type: Map,
-      of: Number,
-      default: {},
+    lastMessageAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {
     timestamps: true,
   }
 );
+
+// Sohbet listesini tarihe göre sıralamak için index
+chatSchema.index({ lastMessageAt: -1 });
 
 module.exports = mongoose.model('Chat', chatSchema);

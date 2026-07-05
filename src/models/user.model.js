@@ -5,85 +5,81 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Lütfen bir ad girin'],
+      required: [true, 'Lütfen bir isim girin'],
     },
     surname: {
       type: String,
-      required: [true, 'Lütfen bir soyad girin'],
+      required: [true, 'Lütfen bir soyisim girin'],
     },
     username: {
       type: String,
       required: [true, 'Lütfen bir kullanıcı adı girin'],
       unique: true,
     },
+    email: {
+      type: String,
+      required: [true, 'Lütfen e-posta adresi girin'],
+      unique: true,
+      match: [
+        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+        'Lütfen geçerli bir e-posta adresi girin',
+      ],
+    },
     password: {
       type: String,
       required: [true, 'Lütfen bir şifre girin'],
       minlength: 8,
-      select: false,
+      select: false, // Sorgularda şifrenin otomatik olarak dönmesini engeller
     },
     profilePhoto: {
       type: String,
-      default: '', // Lokal URL veya bulut URL eklenecek
+      default: 'default.jpg',
     },
     qrCode: {
       type: String,
-      default: '', // Backend tarafında generate edilecek UUID veya direkt kullanıcı id'si
     },
-    friends: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      }
-    ],
-    friendRequests: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      }
-    ],
+    status: {
+      type: String,
+      enum: ['online', 'offline', 'away', 'dnd'],
+      default: 'offline'
+    },
+    lastSeen: {
+      type: Date,
+      default: Date.now
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: String,
+    emailVerificationExpire: Date,
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
     blockedUsers: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-      }
+      },
     ],
-    location: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point',
-      },
-      coordinates: {
-        type: [Number], // [boylam, enlem] formatında
-        default: [0, 0],
-      },
-    },
-    notificationSettings: {
-      mentions: { type: Boolean, default: true },
-      groups: { type: Boolean, default: true },
-      privateChats: { type: Boolean, default: true },
-    }
   },
   {
-    timestamps: true,
+    timestamps: true, // createdAt ve updatedAt otomatik eklenir
   }
 );
 
-// Location özelliği için geo index
-userSchema.index({ location: '2dsphere' });
+// Email ve username için unique indexler otomatik olarak oluşturuldu (şemada unique: true vererek)
 
 // Şifreyi kaydetmeden önce hash'leme
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
   if (!this.isModified('password')) {
-    next();
+    return;
   }
 
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Şifre kıyaslama metodu
+// Girilen şifre ile veritabanındaki hash'lenmiş şifreyi karşılaştırma
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

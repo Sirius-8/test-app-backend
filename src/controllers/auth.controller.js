@@ -1,6 +1,10 @@
 const User = require('../models/user.model');
 const Session = require('../models/session.model');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { generateRandomToken } = require('../utils/crypto.util');
+const sendEmail = require('../services/email.service');
+const { successResponse, errorResponse } = require('../utils/response.util');
 
 // Yardımcı fonksiyonlar: Token üretme
 const generateAccessToken = (id) => {
@@ -17,151 +21,244 @@ const generateRefreshToken = (id) => {
 
 // @desc    Kullanıcı kaydı (Register)
 // @route   POST /api/auth/register
-// @access  Public
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
   try {
-    const { name, surname, username, password } = req.body;
+    const { name, surname, username, password, email } = req.body;
 
-    // 1. Tüm alanların doldurulduğunu kontrol et
-    if (!name || !surname || !username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Lütfen ad, soyad, kullanıcı adı ve şifre alanlarını eksiksiz doldurun',
-      });
+    if (!name || !surname || !username || !password || !email) {
+      return errorResponse(res, 400, 'Lütfen tüm alanları eksiksiz doldurun', 'MISSING_FIELDS');
     }
 
-    // 2. Kullanıcı zaten var mı kontrol et
     const userExists = await User.findOne({ username });
-
     if (userExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'Bu kullanıcı adı daha önceden alınmış',
-      });
+      return errorResponse(res, 409, 'Bu kullanıcı adı daha önceden alınmış', 'DUPLICATE_USERNAME');
     }
 
-    // 3. Kullanıcıyı oluştur ve veritabanına kaydet
+    const emailExists = await User.findOne({ email });
+    if (emailExists) {
+      return errorResponse(res, 409, 'Bu e-posta adresi sistemde zaten kayıtlı', 'DUPLICATE_EMAIL');
+    }
+
+    const { plainToken, hashedToken } = generateRandomToken();
+
     const user = await User.create({
       name,
       surname,
       username,
       password,
+      email,
+      emailVerificationToken: hashedToken,
+      emailVerificationExpire: Date.now() + 24 * 60 * 60 * 1000 // 24 saat geçerli
     });
 
-    if (user) {
-      // 4. Token'ları üret
-      const accessToken = generateAccessToken(user._id);
-      const refreshToken = generateRefreshToken(user._id);
+    // Doğrulama emaili gönder
+    const verifyUrl = `${req.protocol}://${req.get('host')}/api/auth/verifyemail/${plainToken}`;
+    const message = `E-posta adresinizi doğrulamak için şu bağlantıya tıklayın: \n\n ${verifyUrl}`;
+    
+    // Asenkron çalışması için await eklemedik, hatayı tolere edebiliriz
+    sendEmail({
+      to: user.email,
+      subject: 'E-posta Doğrulama',
+      text: message
+    }).catch(err => console.error('E-posta gönderim hatası:', err));
 
-      // 5. Refresh token'ı Session koleksiyonuna kaydet (Örnek: 7 gün geçerli)
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); 
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const ip = req.ip || req.connection.remoteAddress;
 
-      await Session.create({
-        user: user._id,
-        refreshToken: refreshToken,
-        expiresAt: expiresAt,
-        deviceInfo: req.headers['user-agent'] || 'Bilinmeyen Cihaz'
-      });
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); 
 
-      // 6. Başarılı yanıtı dön
-      res.status(201).json({
-        success: true,
-        message: 'Kayıt işlemi başarılı',
-        data: {
-          _id: user._id,
-          name: user.name,
-          surname: user.surname,
-          username: user.username,
-        },
-        tokens: {
-          accessToken,
-          refreshToken,
-        },
-      });
-    }
+    await Session.create({
+      userId: user._id,
+      tokenHash,
+      expiresAt,
+      device: req.headers['user-agent'] || 'Bilinmeyen Cihaz',
+      ip
+    });
+
+    return successResponse(res, 201, 'Kayıt işlemi başarılı', {
+      id: user._id,
+      name: user.name,
+      surname: user.surname,
+      username: user.username,
+      email: user.email,
+      isEmailVerified: user.isEmailVerified,
+      status: user.status
+    }, { accessToken, refreshToken });
+
   } catch (error) {
-    console.error('Kayıt Hatası:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası oluştu, lütfen daha sonra tekrar deneyin',
-      error: error.message
-    });
+    next(error); 
   }
 };
 
 // @desc    Kullanıcı girişi (Login)
 // @route   POST /api/auth/login
-// @access  Public
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   try {
     const { username, password } = req.body;
 
-    // 1. Kullanıcı adı ve şifre girilmiş mi kontrol et
     if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Lütfen kullanıcı adınızı ve şifrenizi girin',
-      });
+      return errorResponse(res, 400, 'Lütfen kullanıcı adınızı ve şifrenizi girin', 'MISSING_CREDENTIALS');
     }
 
-    // 2. Kullanıcıyı bul (Şifreyi de getirmesini istiyoruz çünkü select: false yapmıştık)
     const user = await User.findOne({ username }).select('+password');
-
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Geçersiz kullanıcı adı veya şifre',
-      });
+      return errorResponse(res, 401, 'Geçersiz kullanıcı adı veya şifre', 'INVALID_CREDENTIALS');
     }
 
-    // 3. Şifre doğru mu kontrol et
     const isMatch = await user.matchPassword(password);
-
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Geçersiz kullanıcı adı veya şifre',
-      });
+      return errorResponse(res, 401, 'Geçersiz kullanıcı adı veya şifre', 'INVALID_CREDENTIALS');
     }
 
-    // 4. Token'ları üret
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const ip = req.ip || req.connection.remoteAddress;
 
-    // 5. Session oluştur (Refresh Token için)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); 
 
     await Session.create({
-      user: user._id,
-      refreshToken: refreshToken,
-      expiresAt: expiresAt,
-      deviceInfo: req.headers['user-agent'] || 'Bilinmeyen Cihaz'
+      userId: user._id,
+      tokenHash,
+      expiresAt,
+      device: req.headers['user-agent'] || 'Bilinmeyen Cihaz',
+      ip
     });
 
-    // 6. Başarılı yanıtı dön
-    res.status(200).json({
-      success: true,
-      message: 'Giriş işlemi başarılı',
-      data: {
-        _id: user._id,
-        name: user.name,
-        surname: user.surname,
-        username: user.username,
-      },
-      tokens: {
-        accessToken,
-        refreshToken,
-      },
-    });
+    return successResponse(res, 200, 'Giriş işlemi başarılı', {
+      id: user._id,
+      name: user.name,
+      surname: user.surname,
+      username: user.username,
+      status: user.status
+    }, { accessToken, refreshToken });
 
   } catch (error) {
-    console.error('Giriş Hatası:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Sunucu hatası oluştu, lütfen daha sonra tekrar deneyin',
-      error: error.message
+    next(error);
+  }
+};
+
+// @desc    Kullanıcı çıkışı (Logout)
+// @route   POST /api/auth/logout
+exports.logout = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return errorResponse(res, 400, 'Çıkış yapmak için refresh token gerekli', 'MISSING_TOKEN');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    await Session.findOneAndDelete({ tokenHash });
+
+    return successResponse(res, 200, 'Başarıyla çıkış yapıldı');
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Şifremi Unuttum (Forgot Password)
+// @route   POST /api/auth/forgotpassword
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return errorResponse(res, 404, 'Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı', 'USER_NOT_FOUND');
+    }
+
+    const { plainToken, hashedToken } = generateRandomToken();
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 dakika geçerli
+    await user.save({ validateBeforeSave: false });
+
+    const resetUrl = `${req.protocol}://${req.get('host')}/api/auth/resetpassword/${plainToken}`;
+    const message = `Şifrenizi sıfırlamak için şu bağlantıya tıklayın: \n\n ${resetUrl}`;
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Şifre Sıfırlama İsteği',
+        text: message
+      });
+
+      return successResponse(res, 200, 'Şifre sıfırlama e-postası gönderildi');
+    } catch (err) {
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      return errorResponse(res, 500, 'E-posta gönderilemedi', 'EMAIL_SEND_FAILED');
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Şifre Sıfırlama (Reset Password)
+// @route   POST /api/auth/resetpassword/:resettoken
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(req.params.resettoken)
+      .digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
     });
+
+    if (!user) {
+      return errorResponse(res, 400, 'Geçersiz veya süresi dolmuş token', 'INVALID_TOKEN');
+    }
+
+    if (!req.body.password) {
+      return errorResponse(res, 400, 'Lütfen yeni şifrenizi girin', 'MISSING_PASSWORD');
+    }
+
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    return successResponse(res, 200, 'Şifreniz başarıyla sıfırlandı, artık giriş yapabilirsiniz.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    E-posta Doğrulama (Verify Email)
+// @route   GET /api/auth/verifyemail/:verifytoken
+exports.verifyEmail = async (req, res, next) => {
+  try {
+    const emailVerificationToken = crypto
+      .createHash('sha256')
+      .update(req.params.verifytoken)
+      .digest('hex');
+
+    // Süresi dolmamış token ara
+    const user = await User.findOne({ 
+      emailVerificationToken,
+      emailVerificationExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return errorResponse(res, 400, 'Geçersiz veya süresi dolmuş doğrulama tokenı', 'INVALID_VERIFY_TOKEN');
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpire = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return successResponse(res, 200, 'E-posta adresiniz başarıyla doğrulandı.');
+  } catch (error) {
+    next(error);
   }
 };
