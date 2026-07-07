@@ -16,7 +16,7 @@ const protect = async (req, res, next) => {
 
   // Token yoksa hata dön
   if (!token) {
-    return errorResponse(res, 401, 'Bu rotaya erişmek için yetkiniz yok (Token bulunamadı)');
+    return errorResponse(res, 401, 'Bu rotaya erişmek için yetkiniz yok (Token bulunamadı)', 'UNAUTHENTICATED');
   }
 
   try {
@@ -27,14 +27,14 @@ const protect = async (req, res, next) => {
     const user = await User.findById(decoded.id);
 
     if (!user) {
-      return errorResponse(res, 401, 'Bu tokena ait kullanıcı artık mevcut değil');
+      return errorResponse(res, 401, 'Bu tokena ait kullanıcı artık mevcut değil', 'UNAUTHENTICATED');
     }
 
     // Doğrulanmış kullanıcı bilgilerini isteğe (req.user) ekle ki diğer rotalar kullanabilsin
     req.user = user;
     next();
   } catch (error) {
-    return errorResponse(res, 401, 'Geçersiz veya süresi dolmuş token');
+    return errorResponse(res, 401, 'Geçersiz veya süresi dolmuş token', 'UNAUTHENTICATED');
   }
 };
 

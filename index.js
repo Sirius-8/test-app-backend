@@ -1,14 +1,24 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const http = require('http'); // Socket.IO için http sunucusu
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/auth.routes');
+const chatRoutes = require('./src/routes/chat.routes'); // Yeni Chat API
+const userRoutes = require('./src/routes/user.routes'); // Yeni User API
 const errorHandler = require('./src/middlewares/error.middleware');
+const initializeSockets = require('./src/sockets/socket'); // Yeni Socket Handler
 
 // Veritabanına bağlan
 connectDB();
 
 const app = express();
+
+// Socket.IO'yu Express ile aynı portta çalıştırmak için HTTP sunucusuna sarıyoruz
+const server = http.createServer(app);
+
+// Socket.IO'yu başlat
+initializeSockets(server);
 
 // CORS (Sadece izinli origin, method ve credentials - Standartlara uygun)
 const corsOptions = {
@@ -24,6 +34,8 @@ app.use(express.json());
 
 // API Rotaları
 app.use('/api/auth', authRoutes);
+app.use('/api/chats', chatRoutes); // Chat rotaları
+app.use('/api/discoverusers', userRoutes); // User (Keşfet) rotaları eklendi
 
 // Test rotası
 app.get('/', (req, res) => {
@@ -43,30 +55,11 @@ app.get('/health', (req, res) => {
 // Hata yakalama middleware'i (Tüm rotalardan sonra gelmeli)
 app.use(errorHandler);
 
-const http = require('http');
-const { Server } = require('socket.io');
-
 const PORT = process.env.PORT || 3000;
 
-// HTTP sunucusunu oluştur
-const server = http.createServer(app);
-
-// Socket.io'yu HTTP sunucusuna bağla
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Geliştirme aşamasında tüm originlere izin veriyoruz
-  }
-});
-
-// Socket.io bağlantı dinleyicisi
-io.on('connection', (socket) => {
-  console.log(`Socket.io - Yeni bir kullanıcı bağlandı: ${socket.id}`);
-
-  socket.on('disconnect', () => {
-    console.log(`Socket.io - Kullanıcı ayrıldı: ${socket.id}`);
-  });
-});
-
 server.listen(PORT, () => {
-  console.log(`Sunucu ${PORT} portunda çalışmaya başladı.`);
+  console.log(`\n=============================================`);
+  console.log(`🚀 Sunucu ${PORT} portunda çalışmaya başladı.`);
+  console.log(`⚡ HTTP & WebSocket Aktif`);
+  console.log(`=============================================\n`);
 });
