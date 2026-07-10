@@ -1,8 +1,9 @@
 const User = require('../models/user.model');
+const Friendship = require('../models/friendship.model');
 const { successResponse, errorResponse } = require('../utils/response.util');
 
 // @desc    Sistemdeki kullanıcıları getir (Arama destekli - Korumalı)
-// @route   GET /api/users
+// @route   GET /api/discoverusers
 exports.getUsers = async (req, res, next) => {
   try {
     const keyword = req.query.search
@@ -15,10 +16,43 @@ exports.getUsers = async (req, res, next) => {
         }
       : {};
 
-    const users = await User.find({ ...keyword, _id: { $ne: req.user._id } })
-      .select('name surname username email profilePhoto status lastSeen createdAt');
+    // Block sistemini dikkate al (Ne engellediğim kişileri göreyim, ne de beni engelleyenleri)
+    const blockedFriendships = await Friendship.find({
+      $or: [
+        { requester: req.user._id, status: 'blocked' },
+        { recipient: req.user._id, status: 'blocked' }
+      ]
+    });
+
+    const blockedUserIds = blockedFriendships.map(f => {
+      return f.requester.toString() === req.user._id.toString() ? f.recipient : f.requester;
+    });
+
+    const users = await User.find({ 
+      ...keyword, 
+      _id: { $ne: req.user._id, $nin: blockedUserIds } 
+    }).select('name surname username email profilePhoto status lastSeen createdAt privacy');
 
     return successResponse(res, 200, 'Kullanıcılar başarıyla getirildi', users);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Kullanıcı gizlilik ayarlarını güncelle
+// @route   PUT /api/discoverusers/privacy
+exports.updatePrivacy = async (req, res, next) => {
+  try {
+    const { lastSeen, profilePhoto } = req.body;
+    
+    const user = await User.findById(req.user._id);
+    
+    if (lastSeen) user.privacy.lastSeen = lastSeen;
+    if (profilePhoto) user.privacy.profilePhoto = profilePhoto;
+    
+    await user.save();
+    
+    return successResponse(res, 200, 'Gizlilik ayarları başarıyla güncellendi.', user.privacy);
   } catch (error) {
     next(error);
   }

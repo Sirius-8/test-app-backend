@@ -1,6 +1,7 @@
 const Chat = require('../models/chat.model');
 const ChatMember = require('../models/chatMember.model');
 const Message = require('../models/message.model');
+const Friendship = require('../models/friendship.model');
 const { successResponse, errorResponse } = require('../utils/response.util');
 
 // @desc    Kullanıcının sohbet listesini getir
@@ -61,6 +62,18 @@ exports.createChat = async (req, res, next) => {
 
     // Tüm üyelerin içine beni de (kendi ID'mi) ekle
     const allMembers = [...new Set([...memberIds, req.user._id.toString()])];
+
+    // Block kontrolü: Gruptaki herhangi biriyle aramda block var mı?
+    const blockCheck = await Friendship.findOne({
+      $or: [
+        { requester: req.user._id, recipient: { $in: memberIds }, status: 'blocked' },
+        { requester: { $in: memberIds }, recipient: req.user._id, status: 'blocked' }
+      ]
+    });
+
+    if (blockCheck) {
+      return errorResponse(res, 403, 'Sohbete eklemeye çalıştığınız bir veya daha fazla kullanıcı ile aranızda engel (block) bulunuyor.');
+    }
 
     if (type === 'private' && allMembers.length > 2) {
       return errorResponse(res, 400, 'Özel sohbet sadece iki kişi arasında olabilir', 'INVALID_PRIVATE_CHAT');

@@ -47,6 +47,18 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now
     },
+    privacy: {
+      lastSeen: {
+        type: String,
+        enum: ['everyone', 'friends', 'nobody'],
+        default: 'everyone'
+      },
+      profilePhoto: {
+        type: String,
+        enum: ['everyone', 'friends', 'nobody'],
+        default: 'everyone'
+      }
+    },
     isEmailVerified: {
       type: Boolean,
       default: false,

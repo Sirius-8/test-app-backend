@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-const { getUsers, getAllUsersDebug, deleteUserDebug } = require('../controllers/user.controller');
+const { getUsers, getAllUsersDebug, deleteUserDebug, updatePrivacy } = require('../controllers/user.controller');
 const { protect } = require('../middlewares/auth.middleware');
-const { apiLimiter } = require('../middlewares/rateLimit.middleware');
+const { apiLimiter, searchLimiter } = require('../middlewares/rateLimit.middleware');
 
 // TODO: UNUTMA! Canlıya (Production) çıkmadan önce aşağıdaki test/debug rotalarını SİLMEYİ UNUTMA!
 
@@ -17,8 +17,12 @@ router.delete('/:id', deleteUserDebug);
 router.use(protect);
 router.use(apiLimiter);
 
-// GET /api/users (Uygulama içi kullanıcı arama)
+// GET /api/discoverusers (Uygulama içi kullanıcı arama - Abuse önleme için searchLimiter eklendi)
 router.route('/')
-  .get(getUsers);
+  .get(searchLimiter, getUsers);
+
+// PUT /api/discoverusers/privacy (Gizlilik ayarları)
+router.route('/privacy')
+  .put(updatePrivacy);
 
 module.exports = router;

@@ -4,8 +4,11 @@ const cors = require('cors');
 const http = require('http'); // Socket.IO için http sunucusu
 const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/auth.routes');
-const chatRoutes = require('./src/routes/chat.routes'); // Yeni Chat API
-const userRoutes = require('./src/routes/user.routes'); // Yeni User API
+const chatRoutes = require('./src/routes/chat.routes');
+const userRoutes = require('./src/routes/user.routes');
+const friendshipRoutes = require('./src/routes/friendship.routes');
+const blockRoutes = require('./src/routes/block.routes');
+const qrRoutes = require('./src/routes/qr.routes');
 const errorHandler = require('./src/middlewares/error.middleware');
 const initializeSockets = require('./src/sockets/socket'); // Yeni Socket Handler
 
@@ -34,8 +37,11 @@ app.use(express.json());
 
 // API Rotaları
 app.use('/api/auth', authRoutes);
-app.use('/api/chats', chatRoutes); // Chat rotaları
-app.use('/api/discoverusers', userRoutes); // User (Keşfet) rotaları eklendi
+app.use('/api/chats', chatRoutes);
+app.use('/api/discoverusers', userRoutes);
+app.use('/api/friends', friendshipRoutes);
+app.use('/api/blocks', blockRoutes);
+app.use('/api/qr', qrRoutes);
 
 // Test rotası
 app.get('/', (req, res) => {

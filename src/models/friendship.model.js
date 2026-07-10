@@ -1,29 +1,26 @@
 const mongoose = require('mongoose');
 
-const friendshipSchema = new mongoose.Schema(
-  {
-    requesterId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    receiverId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    status: {
-      type: String,
-      enum: ['pending', 'accepted', 'declined', 'blocked'],
-      default: 'pending',
-    },
+const friendshipSchema = new mongoose.Schema({
+  requester: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
-  {
-    timestamps: true, // createdAt ve updatedAt
+  recipient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected', 'cancelled', 'blocked'],
+    default: 'pending'
   }
-);
+}, {
+  timestamps: true
+});
 
-// Aynı iki kişi arasında sadece bir adet arkadaşlık ilişkisi olabilir
-friendshipSchema.index({ requesterId: 1, receiverId: 1 }, { unique: true });
+// A ve B arasında sadece 1 benzersiz kayıt olabilir
+friendshipSchema.index({ requester: 1, recipient: 1 }, { unique: true });
 
 module.exports = mongoose.model('Friendship', friendshipSchema);

@@ -21,7 +21,37 @@ const apiLimiter = rateLimit({
   },
 });
 
+// Kullanıcı arama (Search) rotası için rate limiter (Abuse önleme)
+const searchLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 dakika
+  max: 50, // 5 dakikada en fazla 50 arama
+  handler: (req, res) => {
+    return errorResponse(res, 429, 'Çok fazla arama yaptınız. Lütfen biraz bekleyin.');
+  },
+});
+
+// Arkadaşlık istekleri için rate limiter (Spam önleme)
+const friendRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 dakika
+  max: 20, // 15 dakikada en fazla 20 arkadaşlık isteği
+  handler: (req, res) => {
+    return errorResponse(res, 429, 'Çok fazla arkadaşlık isteği gönderdiniz. Lütfen daha sonra tekrar deneyin.');
+  },
+});
+
+// QR Tarama için rate limiter (Brute-force önleme)
+const qrScanLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 dakika
+  max: 10, // 5 dakikada en fazla 10 QR taraması
+  handler: (req, res) => {
+    return errorResponse(res, 429, 'Çok fazla QR taraması yaptınız. Lütfen daha sonra tekrar deneyin.');
+  },
+});
+
 module.exports = {
   authLimiter,
   apiLimiter,
+  searchLimiter,
+  friendRequestLimiter,
+  qrScanLimiter
 };
