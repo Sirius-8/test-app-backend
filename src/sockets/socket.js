@@ -134,6 +134,14 @@ const initializeSockets = (server) => {
       });
     });
 
+    // Dinamik Oda Katılımı (Yeni sohbet oluşturulduğunda bağlanmak için)
+    socket.on('join_room', (data) => {
+      const { chatId } = data;
+      if (chatId) {
+        socket.join(`chat:${chatId}`);
+      }
+    });
+
     // Çıkış (Disconnect)
     socket.on('disconnect', async () => {
       console.log(`❌ WebSocket ayrıldı: ${socket.user.username}`);
