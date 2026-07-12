@@ -1,38 +1,43 @@
 const mongoose = require('mongoose');
 
-const locationShareSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+const locationShareSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    unique: true // Her kullanıcının sadece 1 aktif konumu olur
+  },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
       required: true,
+      default: 'Point'
     },
     coordinates: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point',
-      },
-      coordinates: {
-        type: [Number], // [boylam, enlem]
-        required: true,
-      },
-    },
-    visibility: {
-      type: String,
-      enum: ['all', 'friends', 'none'],
-      default: 'friends',
-    },
+      type: [Number], // [longitude, latitude]
+      required: true
+    }
   },
-  {
-    timestamps: true,
+  visibility: {
+    type: String,
+    enum: ['everyone', 'friends', 'nobody'],
+    default: 'everyone'
+  },
+  isMasked: {
+    type: Boolean,
+    default: false
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+    expires: 3600 // TTL Index: 3600 saniye (1 saat) sonra bu doküman otomatik silinir
   }
-);
+}, {
+  timestamps: true // updatedAt alanını mongoose otomatik de günceller
+});
 
-// Konum bazlı aramalar için geospatial index
-locationShareSchema.index({ coordinates: '2dsphere' });
-
-// Canlı konumun örneğin 2 saat sonra silinmesi için (İsteğe bağlı TTL)
-// locationShareSchema.index({ updatedAt: 1 }, { expireAfterSeconds: 7200 });
+// Geospatial index for nearby queries
+locationShareSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('LocationShare', locationShareSchema);

@@ -56,9 +56,25 @@ const initializeSockets = (server) => {
       socket.join(`chat:${chat.chatId}`);
     });
 
-    // Kullanıcı online oldu bilgisini diğerlerine yayınla
+    // Kullanıcı online oldu bilgisini gizlilik ayarlarına göre yayınla
     await User.findByIdAndUpdate(socket.user._id, { status: 'online' });
-    io.emit('user.online', { userId: socket.user._id, status: 'online' });
+    
+    const onlinePrivacy = socket.user.privacy?.onlineStatus || 'everyone';
+    
+    if (onlinePrivacy === 'everyone') {
+      io.emit('user.online', { userId: socket.user._id, status: 'online' });
+    } else if (onlinePrivacy === 'friends') {
+      const Friendship = require('../models/friendship.model');
+      const friends = await Friendship.find({
+        $or: [{ requester: socket.user._id }, { recipient: socket.user._id }],
+        status: 'accepted'
+      });
+      friends.forEach(f => {
+        const friendId = f.requester.toString() === socket.user._id.toString() ? f.recipient : f.requester;
+        socket.to(`user:${friendId}`).emit('user.online', { userId: socket.user._id, status: 'online' });
+      });
+    }
+    // nobody ise kimseye bildirim gönderme
 
     // --- EVENTLER ---
 
@@ -146,7 +162,21 @@ const initializeSockets = (server) => {
     socket.on('disconnect', async () => {
       console.log(`❌ WebSocket ayrıldı: ${socket.user.username}`);
       await User.findByIdAndUpdate(socket.user._id, { status: 'offline', lastSeen: new Date() });
-      io.emit('user.offline', { userId: socket.user._id, status: 'offline', lastSeen: new Date() });
+      
+      const offlinePrivacy = socket.user.privacy?.onlineStatus || 'everyone';
+      if (offlinePrivacy === 'everyone') {
+        io.emit('user.offline', { userId: socket.user._id, status: 'offline', lastSeen: new Date() });
+      } else if (offlinePrivacy === 'friends') {
+        const Friendship = require('../models/friendship.model');
+        const friends = await Friendship.find({
+          $or: [{ requester: socket.user._id }, { recipient: socket.user._id }],
+          status: 'accepted'
+        });
+        friends.forEach(f => {
+          const friendId = f.requester.toString() === socket.user._id.toString() ? f.recipient : f.requester;
+          socket.to(`user:${friendId}`).emit('user.offline', { userId: socket.user._id, status: 'offline', lastSeen: new Date() });
+        });
+      }
     });
   });
 };

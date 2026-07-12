@@ -57,6 +57,16 @@ const userSchema = new mongoose.Schema(
         type: String,
         enum: ['everyone', 'friends', 'nobody'],
         default: 'everyone'
+      },
+      onlineStatus: {
+        type: String,
+        enum: ['everyone', 'friends', 'nobody'],
+        default: 'everyone'
+      },
+      locationShare: {
+        type: String,
+        enum: ['everyone', 'friends', 'nobody'],
+        default: 'everyone'
       }
     },
     isEmailVerified: {

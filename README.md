@@ -6,8 +6,8 @@
 
 POST http://localhost:3000/api/auth/register
 
-Body: Raw JSON
-
+- **Body:** raw (JSON)
+```json
 {
   "name": "Ahmet",
   "surname": "Yılmaz",
@@ -15,40 +15,44 @@ Body: Raw JSON
   "email": "ahmet@ornek.com",
   "password": "sifre123"
 }
+```
 
 
 ### 2. Login
 
 POST http://localhost:3000/api/auth/login
 
-Body Raw JSON:
-
+- **Body:** raw (JSON)
+```json
 {
   "username": "ahmetyilmaz",
   "password": "sifre123"
 }
+```
 
 
 ### 3. Forgot Password
 
 POST http://localhost:3000/api/auth/forgotpassword
 
-Body Raw JSON:
-
+- **Body:** raw (JSON)
+```json
 {
   "email": "ahmet@ornek.com"
 }
+```
 
 
 ### 4. Reset Password
 
 POST http://localhost:3000/api/auth/resetpassword/{forgot_password_sonrası_gelen_token}
 
-Body Raw JSON:
-
+- **Body:** raw (JSON)
+```json
 {
   "password": "yeniSifre456"
 }
+```
 
 
 ### 5. Verify Email
@@ -64,31 +68,42 @@ Body: Yok
 POST http://localhost:3000/api/auth/logout
 
 Auth: Yok
-Body:
-Raw JSON:
+- **Body:** raw (JSON)
+```json
 {
   "refreshToken": "GİRİŞ_YAPTIĞINIZDA_SİZE_VERİLEN_REFRESH_TOKEN_BURAYA"
 }
-------------------------
+```
 
-## USER (TEST) MODÜLÜ
 
-### 1. Get All Users
 
-GET http://localhost:3000/api/users/all
 
-Auth: Yok
 
-Body: Yok
+---------------------------------------------------------
 
-### 2. Delete User From DB
+## USER MODÜLÜ
 
-DELETE http://localhost:3000/api/users/{silinecek_user_id}
+### 1. Discover Users
+- **Method:** `GET`
+- **URL:** `http://localhost:3000/api/discoverusers`
+- **Auth:** Bearer Token
+- **Body:** Yok
 
-Auth: Yok
-Body: Yok
+### 2. Get All Users (Test Amaçlı)
+- **Method:** `GET`
+- **URL:** `http://localhost:3000/api/users/all`
+- **Auth:** Yok
+- **Body:** Yok
 
-------------------------
+### 3. Delete User From DB (Test Amaçlı)
+- **Method:** `DELETE`
+- **URL:** `http://localhost:3000/api/users/{silinecek_user_id}`
+- **Auth:** Yok
+- **Body:** Yok
+
+
+
+---------------------------------------------------------
 
 ## CHAT MODÜLÜ
 
@@ -98,11 +113,13 @@ POST  http://localhost:3000/api/chats
 
 Auth: Bearer Token
 
-Body:
+- **Body:** raw (JSON)
+```json
 {
   "type": "private",
   "memberIds": ["SOHBET_EDILECEK_KISININ_ID_SI"]
 }
+```
 
 
 ### 2. List My Chats
@@ -122,19 +139,12 @@ Body: Yok
 
 
 
-------------------------
+---------------------------------------------------------
 
-## USER MODÜLÜ
 
-### 1. Discover Users
 
-GET http://localhost:3000/api/discoverusers
 
-Auth: Bearer Token
 
-Body: Yok(çünkü GET isteği atılıyor.)
-
-------------------------
 
 ## WEBSOCKET MODÜLÜ (REALTIME)
 
@@ -203,7 +213,15 @@ Sizin attığınız mesaj karşı tarafta okunduğunda size gelecek olan olay:
 - **Events (Listen) Bölümüne Yazın:** `message.read`
 - **DİKKAT:** Listen anahtarı (toggle) AÇIK (mavi) olmalıdır!
 
-------------------------
+
+
+
+
+---------------------------------------------------------
+
+
+
+
 
 ## FRIENDSHIP MODÜLÜ (Arkadaşlık Sistemi)
 
@@ -240,7 +258,18 @@ Sizin attığınız mesaj karşı tarafta okunduğunda size gelecek olan olay:
 - **URL:** `http://localhost:3000/api/friends/FRIENDSHIP_ID`
 - **Body:** Yok
 
-------------------------
+
+
+
+
+
+---------------------------------------------------------
+
+
+
+
+
+
 
 ## BLOCK & PRIVACY MODÜLÜ (Engelleme ve Gizlilik)
 
@@ -268,12 +297,22 @@ Sizin attığınız mesaj karşı tarafta okunduğunda size gelecek olan olay:
 ```json
 {
   "lastSeen": "nobody", 
-  "profilePhoto": "friends"
+  "profilePhoto": "friends",
+  "onlineStatus": "everyone",
+  "locationShare": "friends"
 }
 ```
 *(Seçenekler: "everyone", "friends", "nobody")*
 
-------------------------
+
+
+
+---------------------------------------------------------
+
+
+
+
+
 
 ## QR MODÜLÜ (Karekod İşlemleri)
 
@@ -288,3 +327,73 @@ Sizin attığınız mesaj karşı tarafta okunduğunda size gelecek olan olay:
 - **Method:** `GET`
 - **URL:** `http://localhost:3000/api/qr/scan/URETILEN_32_KARAKTERLIK_TOKEN_BURAYA`
 - **Body:** Yok
+
+
+
+
+
+---------------------------------------------------------
+
+
+
+
+
+
+
+## LOCATION MODÜLÜ (Harita ve Konum Paylaşımı)
+
+*Tüm rotalar için Auth: Bearer Token zorunludur.*
+
+### 1. Kendi Konumumu Güncelle
+- **Method:** `PUT`
+- **URL:** `http://localhost:3000/api/locations`
+- **Body:** raw (JSON)
+```json
+{
+  "lng": 28.9784,
+  "lat": 41.0082,
+  "isMasked": true,
+  "visibility": "everyone"
+}
+```
+*(Not: `isMasked` true olursa konumunuz tahmini olarak ~500 metre saptırılarak kaydedilir. `visibility` değerine `everyone`, `friends` veya `nobody` verebilirsiniz.)*
+
+### 2. Yakındaki Kullanıcıları Getir
+- **Method:** `GET`
+- **URL:** `http://localhost:3000/api/locations/nearby?lng=28.9784&lat=41.0082&radius=5000`
+- **Body:** Yok
+*(Not: `radius` metre cinsindendir. Sizi engelleyen, gizlilik ayarı "nobody" olan kişiler listeye yansımaz.)*
+
+
+
+
+
+---------------------------------------------------------
+
+
+
+
+
+
+
+
+## NOTIFICATION MODÜLÜ (Bildirim Tercihleri)
+
+*Tüm rotalar için Auth: Bearer Token zorunludur.*
+
+### 1. Bildirim Tercihlerimi Getir
+- **Method:** `GET`
+- **URL:** `http://localhost:3000/api/notifications/preferences`
+- **Body:** Yok
+
+### 2. Bildirim Tercihi Güncelle
+- **Method:** `PUT`
+- **URL:** `http://localhost:3000/api/notifications/preferences`
+- **Body:** raw (JSON)
+```json
+{
+  "channel": "push",
+  "enabled": false
+}
+```
+*(Kanal Seçenekleri: "push", "email", "sms", "in_app")*

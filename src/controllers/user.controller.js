@@ -43,12 +43,14 @@ exports.getUsers = async (req, res, next) => {
 // @route   PUT /api/discoverusers/privacy
 exports.updatePrivacy = async (req, res, next) => {
   try {
-    const { lastSeen, profilePhoto } = req.body;
+    const { lastSeen, profilePhoto, onlineStatus, locationShare } = req.body;
     
     const user = await User.findById(req.user._id);
     
     if (lastSeen) user.privacy.lastSeen = lastSeen;
     if (profilePhoto) user.privacy.profilePhoto = profilePhoto;
+    if (onlineStatus) user.privacy.onlineStatus = onlineStatus;
+    if (locationShare) user.privacy.locationShare = locationShare;
     
     await user.save();
     

@@ -9,6 +9,8 @@ const userRoutes = require('./src/routes/user.routes');
 const friendshipRoutes = require('./src/routes/friendship.routes');
 const blockRoutes = require('./src/routes/block.routes');
 const qrRoutes = require('./src/routes/qr.routes');
+const locationRoutes = require('./src/routes/location.routes');
+const notificationRoutes = require('./src/routes/notification.routes');
 const errorHandler = require('./src/middlewares/error.middleware');
 const initializeSockets = require('./src/sockets/socket'); // Yeni Socket Handler
 
@@ -42,6 +44,8 @@ app.use('/api/discoverusers', userRoutes);
 app.use('/api/friends', friendshipRoutes);
 app.use('/api/blocks', blockRoutes);
 app.use('/api/qr', qrRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Test rotası
 app.get('/', (req, res) => {
