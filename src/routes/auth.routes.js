@@ -8,10 +8,12 @@ const {
   logout, 
   forgotPassword, 
   resetPassword, 
-  verifyEmail 
+  verifyEmail,
+  changePassword
 } = require('../controllers/auth.controller'); 
 
 const { authLimiter } = require('../middlewares/rateLimit.middleware');
+const { protect } = require('../middlewares/auth.middleware');
 
 // Güvenlik: Tüm Auth rotalarına istek sınırlandırması uygula
 router.use(authLimiter);
@@ -33,5 +35,9 @@ router.post('/resetpassword/:resettoken', resetPassword);
 
 // GET /api/auth/verifyemail/:verifytoken
 router.get('/verifyemail/:verifytoken', verifyEmail);
+
+// PUT /api/auth/changepassword (Kullanıcının ayarlardan kendi şifresini değiştirmesi)
+// Korumalı rota: protect middleware gerektirir
+router.put('/changepassword', protect, changePassword);
 
 module.exports = router;

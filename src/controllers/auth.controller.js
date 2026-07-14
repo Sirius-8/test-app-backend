@@ -262,3 +262,39 @@ exports.verifyEmail = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Kullanıcının kendi şifresini değiştirmesi (Ayarlar içinden)
+// @route   PUT /api/auth/changepassword
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return errorResponse(res, 400, 'Lütfen mevcut ve yeni şifrenizi eksiksiz girin.', 'MISSING_FIELDS');
+    }
+
+    if (newPassword.length < 8) {
+      return errorResponse(res, 400, 'Yeni şifreniz en az 8 karakter olmalıdır.', 'INVALID_PASSWORD_LENGTH');
+    }
+
+    // req.user._id, protect middleware'inden geliyor. Sadece şifreyi dahil ediyoruz
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) {
+      return errorResponse(res, 404, 'Kullanıcı bulunamadı', 'USER_NOT_FOUND');
+    }
+
+    // Eski şifre doğru mu kontrol et
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return errorResponse(res, 401, 'Mevcut şifreniz hatalı', 'INVALID_CREDENTIALS');
+    }
+
+    // Yeni şifreyi ata (Modelin save methodu onu hash'leyecektir)
+    user.password = newPassword;
+    await user.save();
+
+    return successResponse(res, 200, 'Şifreniz başarıyla değiştirildi.');
+  } catch (error) {
+    next(error);
+  }
+};

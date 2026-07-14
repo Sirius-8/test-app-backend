@@ -1,6 +1,16 @@
 const User = require('../models/user.model');
 const Friendship = require('../models/friendship.model');
 const { successResponse, errorResponse } = require('../utils/response.util');
+const sharp = require('sharp');
+const path = require('path');
+const fs = require('fs');
+
+// Klasör yoksa oluştur
+const ensureDir = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+};
 
 // @desc    Sistemdeki kullanıcıları getir (Arama destekli - Korumalı)
 // @route   GET /api/discoverusers
@@ -55,6 +65,71 @@ exports.updatePrivacy = async (req, res, next) => {
     await user.save();
     
     return successResponse(res, 200, 'Gizlilik ayarları başarıyla güncellendi.', user.privacy);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Kullanıcı istemci ayarlarını güncelle (Dil, Tema vb.)
+// @route   PUT /api/discoverusers/settings
+exports.updateClientSettings = async (req, res, next) => {
+  try {
+    const { theme, language } = req.body;
+    
+    const user = await User.findById(req.user._id);
+    
+    if (theme) user.clientSettings.theme = theme;
+    if (language) user.clientSettings.language = language;
+    
+    await user.save();
+    
+    return successResponse(res, 200, 'İstemci ayarları başarıyla güncellendi.', user.clientSettings);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Kullanıcı profil fotoğrafını yükle/güncelle
+// @route   POST /api/discoverusers/profile-photo
+exports.uploadProfilePhoto = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return errorResponse(res, 400, 'Lütfen bir resim dosyası seçin.');
+    }
+
+    const user = await User.findById(req.user._id);
+
+    // Eski dosyayı silme (Eğer default.jpg değilse)
+    if (user.profilePhoto && user.profilePhoto !== 'default.jpg') {
+      const oldPath = path.join(__dirname, '../../public', user.profilePhoto);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+
+    // Yeni dosya adı oluştur
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const filename = `profile-${req.user._id}-${uniqueSuffix}.webp`;
+    
+    // Klasör yolunu ayarla
+    const uploadDir = path.join(__dirname, '../../public/uploads/profiles');
+    ensureDir(uploadDir);
+
+    // Sharp ile resmi yeniden boyutlandır (500x500), webp formatına dönüştür ve kaydet
+    await sharp(req.file.buffer)
+      .resize(500, 500, {
+        fit: sharp.fit.cover,
+        position: sharp.strategy.entropy
+      })
+      .webp({ quality: 80 })
+      .toFile(path.join(uploadDir, filename));
+
+    // Veritabanını güncelle
+    const photoUrl = `/uploads/profiles/${filename}`;
+    user.profilePhoto = photoUrl;
+    await user.save();
+
+    return successResponse(res, 200, 'Profil fotoğrafı başarıyla güncellendi.', { profilePhoto: photoUrl });
   } catch (error) {
     next(error);
   }

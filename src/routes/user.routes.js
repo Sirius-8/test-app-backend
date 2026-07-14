@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 
-const { getUsers, getAllUsersDebug, deleteUserDebug, updatePrivacy } = require('../controllers/user.controller');
+const { getUsers, getAllUsersDebug, deleteUserDebug, updatePrivacy, updateClientSettings, uploadProfilePhoto } = require('../controllers/user.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { apiLimiter, searchLimiter } = require('../middlewares/rateLimit.middleware');
+const upload = require('../middlewares/upload.middleware');
 
 // TODO: UNUTMA! Canlıya (Production) çıkmadan önce aşağıdaki test/debug rotalarını SİLMEYİ UNUTMA!
 
@@ -24,5 +25,13 @@ router.route('/')
 // PUT /api/discoverusers/privacy (Gizlilik ayarları)
 router.route('/privacy')
   .put(updatePrivacy);
+
+// PUT /api/discoverusers/settings (İstemci/Tema ayarları)
+router.route('/settings')
+  .put(updateClientSettings);
+
+// POST /api/discoverusers/profile-photo (Profil resmi yükleme)
+router.route('/profile-photo')
+  .post(upload.single('image'), uploadProfilePhoto);
 
 module.exports = router;

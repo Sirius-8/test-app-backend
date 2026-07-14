@@ -79,6 +79,9 @@ Auth: Yok
 
 
 
+
+
+
 ---------------------------------------------------------
 
 ## USER MODÜLÜ
@@ -100,6 +103,7 @@ Auth: Yok
 - **URL:** `http://localhost:3000/api/users/{silinecek_user_id}`
 - **Auth:** Yok
 - **Body:** Yok
+
 
 
 
@@ -376,15 +380,50 @@ Sizin attığınız mesaj karşı tarafta okunduğunda size gelecek olan olay:
 
 
 
+## SETTINGS MODÜLÜ (Ayarlar)
 
+*Tüm rotalar için Auth: Bearer Token zorunludur.*
+
+### 1. Update Client Settings (Uygulama Ayarları)
+- **Method:** `PUT`
+- **URL:** `http://localhost:3000/api/discoverusers/settings`
+- **Body:** raw (JSON)
+```json
+{
+  "theme": "dark",
+  "language": "en"
+}
+```
+
+### 2. Upload Profile Photo (Profil Fotoğrafı Yükleme)
+- **Method:** `POST`
+- **URL:** `http://localhost:3000/api/discoverusers/profile-photo`
+- **Body:** form-data
+  - Key: `image` (Type'ı File seçin)
+  - Value: Bilgisayarınızdan bir resim seçin.
+*(Seçtiğiniz resim sunucuda sharp ile küçültülecek ve WebP formatında saklanacaktır.)*
+
+### 3. Change Password (Kendi Şifresini Değiştirme)
+- **Method:** `PUT`
+- **URL:** `http://localhost:3000/api/auth/changepassword`
+- **Body:** raw (JSON)
+```json
+{
+  "currentPassword": "eski_sifreniz",
+  "newPassword": "yeni_sifre_123"
+}
+```
+
+---------------------------------------------------------
 ## NOTIFICATION MODÜLÜ (Bildirim Tercihleri)
 
 *Tüm rotalar için Auth: Bearer Token zorunludur.*
 
 ### 1. Bildirim Tercihlerimi Getir
 - **Method:** `GET`
-- **URL:** `http://localhost:3000/api/notifications/preferences`
+- **URL:** `http://localhost:3000/api/notifications/preferences?type=global`
 - **Body:** Yok
+*(Not: `type` parametresine "global", "group_chat", veya "private_chat" verebilirsiniz.)*
 
 ### 2. Bildirim Tercihi Güncelle
 - **Method:** `PUT`
@@ -393,7 +432,9 @@ Sizin attığınız mesaj karşı tarafta okunduğunda size gelecek olan olay:
 ```json
 {
   "channel": "push",
+  "type": "global",
   "enabled": false
 }
 ```
-*(Kanal Seçenekleri: "push", "email", "sms", "in_app")*
+*(Kanal: "push", "email", "sms", "in_app")*
+*(Tip: "global", "group_chat", "private_chat")*

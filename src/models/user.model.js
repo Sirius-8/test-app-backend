@@ -73,6 +73,17 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    clientSettings: {
+      theme: {
+        type: String,
+        enum: ['system', 'light', 'dark'],
+        default: 'system'
+      },
+      language: {
+        type: String,
+        default: 'tr'
+      }
+    },
     emailVerificationToken: String,
     emailVerificationExpire: Date,
     resetPasswordToken: String,

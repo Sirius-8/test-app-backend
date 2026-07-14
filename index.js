@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const http = require('http'); // Socket.IO için http sunucusu
 const connectDB = require('./src/config/db');
@@ -36,6 +37,9 @@ app.use(cors(corsOptions));
 
 // Gelen JSON formatındaki istekleri parse etmek için
 app.use(express.json());
+
+// Statik dosyaları dışarıya açmak için (Örn: profil resimleri)
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // API Rotaları
 app.use('/api/auth', authRoutes);
